@@ -1,87 +1,64 @@
-import os.path
-import sqlite3
+import db_functions as db
 
-from flask import Flask
-from flask import request, jsonify
+from flask import Flask, abort, render_template, send_from_directory
+from flask_restful import Resource, Api, reqparse
+
 
 app = Flask(__name__)
+api = Api(app)
 
-DB_PATH = os.path.abspath("./sqlite.db")
-
-
-@app.route("/")
-def post(name):
-    fish = fetch_fish(name)
-    if not fish:
-        fish = {"error": "Fish not found"}
-    return jsonify(fish)
+fish_parser = reqparse.RequestParser()
+fish_parser.add_argument("name", type=str, required=True, help="Name for new fish")
+fish_parser.add_argument("size", type=str, required=True, help="Fish size")
 
 
-@app.route("/api/fish/<name>")
-def fish_api_fetch(name):
-    fish = fetch_fish(name)
-    if not fish:
-        fish = {"error": "Fish not found"}
-    return jsonify(fish)
+class ListFishes(Resource):
+    def get(self):
+        return db.fetch_fishes(), 200
 
-
-@app.route("/api/fish/", methods=["GET", "POST"])
-def fish_api():
-    if request.method == "GET":
-        return jsonify(fetch_fishes())
-
-    elif request.method == "POST":
-        name = request.form["name"]
-        size = request.form["size"]
-        try:
-            add_new_fish(name, size)
-        except sqlite3.IntegrityError:
-            pass
-        fish = fetch_fish(name)
-        if fish:
-            return jsonify(fish)
+    def post(self):
+        new_fish = fish_parser.parse_args()
+        fish_name = new_fish["name"]
+        fish_size = new_fish["size"]
+        if not (fish_name and fish_size):
+            return abort(400)
+        db.add_new_fish(new_fish["name"], new_fish["size"])
+        fish_info = db.fetch_fish(fish_name)
+        if fish_info:
+            return fish_info, 201
         else:
-            return jsonify(error="Параметры: name, size")
+            return "Error db", 500
 
 
-def create_db():
-    create_fish = """CREATE TABLE fish
-    (id INTEGER PRIMARY KEY AUTOINCREMENT, name text UNIQUE, size text);"""
-    _send_request_db(create_fish)
+class Fish(Resource):
+    def get(self, fish_name):
+        fish_info = db.fetch_fish(fish_name)
+        if not fish_info:
+            return abort(404)
+        return fish_info, 200
+
+    def delete(self, fish_name):
+        db.delete_fish(fish_name)
+        fish_info = db.fetch_fish(fish_name)
+        if not fish_info:
+            return fish_info, 204
+        else:
+            return "Error db", 500
 
 
-def add_new_fish(name: str, size: str):
-    add_fish = """INSERT INTO fish (name, size) VALUES (?, ?);"""
-    _send_request_db(add_fish, (name, size))
+api.add_resource(ListFishes, "/api/fish/")
+api.add_resource(Fish, "/api/fish/<string:fish_name>")
 
-
-def fetch_fish(name):
-    select_fish = "SELECT id, name, size FROM fish WHERE name=?;"
-    fish = _send_request_db(select_fish, (name,))
-    try:
-        fish_id, fish_name, fish_size = fish[0]
-        return dict(id=fish_id, name=fish_name, size=fish_size)
-    except (ValueError, IndexError):
-        return dict()
-
-
-def fetch_fishes():
-    select_fish = "SELECT id, name, size FROM fish;"
-    fishes = _send_request_db(select_fish)
-    return [dict(id=_id, name=name, size=size) for _id, name, size in fishes]
-
-
-def _send_request_db(sql_request, variables=tuple()):
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute(sql_request, variables)
-        conn.commit()
-    return cursor.fetchall()
+# @app.route("/")
+# def post(name):
+#     fish = fetch_fish(name)
+#     if not fish:
+#         fish = {"error": "Fish not found"}
+#     return jsonify(fish)
 
 
 def main():
-    if not os.path.isfile(DB_PATH):
-        create_db()
+    db.check_db()
     app.run()
 
 
