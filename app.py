@@ -1,8 +1,9 @@
-import db_functions as db
-
-from flask import Flask, abort, render_template, send_from_directory
+from flask import Flask, abort, render_template
 from flask_restful import Resource, Api, reqparse
 
+import db_functions as db
+
+db.check_db()
 
 app = Flask(__name__)
 api = Api(app)
@@ -53,20 +54,15 @@ class Fish(Resource):
             return "Error db", 500
 
 
-# @app.route("/")
-# def main_page():
-#     return render_template("widget.html")
-#
-#
+@app.route("/")
+def main_page():
+    return render_template("index.html", fishes=db.fetch_fishes())
+
+
 # @app.route("/static/<path:path>")
 # def static(path):
 #     return send_from_directory("static", path)
 
 
-def main():
-    db.check_db()
-    app.run()
-
-
 if __name__ == "__main__":
-    main()
+    app.run()
