@@ -12,24 +12,31 @@ fish_parser.add_argument("name", type=str, required=True, help="Name for new fis
 fish_parser.add_argument("size", type=str, required=True, help="Fish size")
 
 
+@api.resource("/api/fish/")
 class ListFishes(Resource):
     def get(self):
         return db.fetch_fishes(), 200
 
+
+@api.resource("/api/fish/add/")
+class AddFish(Resource):
     def post(self):
         new_fish = fish_parser.parse_args()
         fish_name = new_fish["name"]
         fish_size = new_fish["size"]
         if not (fish_name and fish_size):
             return abort(400)
-        db.add_new_fish(new_fish["name"], new_fish["size"])
         fish_info = db.fetch_fish(fish_name)
         if fish_info:
-            return fish_info, 201
-        else:
-            return "Error db", 500
+            return fish_info, 302
+        db.add_new_fish(new_fish["name"], new_fish["size"])
+        fish_info = db.fetch_fish(fish_name)
+        return fish_info, 201
+
+    get = post
 
 
+@api.resource("/api/fish/<string:fish_name>")
 class Fish(Resource):
     def get(self, fish_name):
         fish_info = db.fetch_fish(fish_name)
@@ -46,15 +53,14 @@ class Fish(Resource):
             return "Error db", 500
 
 
-api.add_resource(ListFishes, "/api/fish/")
-api.add_resource(Fish, "/api/fish/<string:fish_name>")
-
 # @app.route("/")
-# def post(name):
-#     fish = fetch_fish(name)
-#     if not fish:
-#         fish = {"error": "Fish not found"}
-#     return jsonify(fish)
+# def main_page():
+#     return render_template("widget.html")
+#
+#
+# @app.route("/static/<path:path>")
+# def static(path):
+#     return send_from_directory("static", path)
 
 
 def main():
