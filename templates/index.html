@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Fish page</title>
+    <style>
+        .fish{
+            margin: 10px;
+        }
+        .add-new{
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+<h1>Fishes</h1>
+<ul>
+    {% if fishes %}
+        {% for fish in fishes %}
+            <li class="fish">
+                <div class="fish-name">Fish name: {{ fish.name }}</div>
+                <div class="fish-size">Size: {{ fish.size }}</div>
+            </li>
+        {% endfor %}
+    {% else %}
+        There is nothing
+    {% endif %}
+</ul>
+<div class="add-new">
+<form method="post" action="/api/fish/add/" name="add-fish">
+    <input type="text" name="name" placeholder="Fish name">
+    <input type="text" name="size" placeholder="Fish size">
+    <input type="submit" value="Add new fish">
+</form>
+</div>
+</body>
+</html>
